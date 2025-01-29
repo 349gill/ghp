@@ -1,5 +1,5 @@
 # ghp
-ghp is a Git configuration management tool aimed for managing several Github profiles and SSH/GPG keys
+ghp is a Git configuration management tool aimed for managing several GitHub profiles and SSH/GPG keys
 
 ## Get started
 For Unix and WSL systems, use
@@ -9,7 +9,7 @@ cargo install --git https://github.com/349gill/ghp.git
 The tool does not work on Windows for now
 
 ## Troubleshooting
-If you cannot access the tool directly from the terminal, try manually adding it in PATH
+If you cannot access the tool directly from the terminal, try manually adding it as a PATH variable
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
@@ -22,7 +22,7 @@ ghp setup -s ~/.ssh/config -g ~/.ghp
 Before doing anything.
 
 A ghp Profile consists of a name, email, and a path to an SSH key.
-The name and email should match with the user.name and user.email of the git configuration associated to the profile.
+The name and email should match with the user.name and user.email of the git configuration associated with the profile.
 
 New Profiles can be created as
 ```
