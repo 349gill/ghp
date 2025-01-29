@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = "4.4"
+thiserror = "1.0"
+dirs = "5.0"
