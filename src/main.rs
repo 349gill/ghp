@@ -190,7 +190,10 @@ fn main() -> Result<()> {
 }
 
 fn get_default_paths() -> Result<(PathBuf, PathBuf)> {
-    let home = dirs::home_dir().ok_or_else(|| GhpError::ConfigParse("Could not determine home directory".to_string()))?;
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map_err(|_| GhpError::ConfigParse("Could not determine home directory".to_string()))?;
+    let home = PathBuf::from(home);
     Ok((
         home.join(".ssh").join("config"),
         home.join(".ghp"),
@@ -235,6 +238,10 @@ fn add_profile(matches: &ArgMatches) -> Result<()> {
     let email = read_input("Enter Git email: ")?;
     let ssh_key = read_input("Enter path to SSH key: ")?;
 
+    if username.is_empty() || email.is_empty() || ssh_key.is_empty() {
+        return Err(GhpError::MissingConfig("All fields are required".to_string()));
+    }
+
     config.profiles.insert(profile_name.clone(), Profile {
         username: username.clone(),
         email,
@@ -242,8 +249,8 @@ fn add_profile(matches: &ArgMatches) -> Result<()> {
     });
 
     let ssh_config = format!(
-        "Host github.com-{}\n  HostName github.com\n  User {}\n  IdentityFile {}\n\n",
-        profile_name, username, ssh_key
+        "Host github.com-{}\n  HostName github.com\n  User git\n  IdentityFile {}\n\n",
+        profile_name, ssh_key
     );
     fs::OpenOptions::new()
         .append(true)
@@ -268,8 +275,7 @@ fn switch_profile(matches: &ArgMatches) -> Result<()> {
         .unwrap_or_default();
     
     let new_host_config = format!(
-        "Host github.com\n  HostName github.com\n  User {}\n  IdentityFile {}\n",
-        profile.username,
+        "Host github.com\n  HostName github.com\n  User git\n  IdentityFile {}\n",
         profile.ssh_key.display()
     );
 
@@ -295,29 +301,35 @@ fn switch_profile(matches: &ArgMatches) -> Result<()> {
 }
 
 fn update_github_host_in_ssh_config(content: &str, new_host_config: &str) -> Result<String> {
-    let mut lines: Vec<&str> = content.lines().collect();
+    let lines: Vec<&str> = content.lines().collect();
     let mut start_idx = None;
     let mut end_idx = None;
-    let mut in_github_host = false;
 
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
         if trimmed.eq_ignore_ascii_case("Host github.com") {
             start_idx = Some(i);
-            in_github_host = true;
-        } else if in_github_host {
-            if trimmed.starts_with("Host ") || i == lines.len() - 1 {
-                end_idx = Some(if i == lines.len() - 1 { i + 1 } else { i });
-                break;
+            let mut j = i + 1;
+            while j < lines.len() {
+                let next_line = lines[j].trim();
+                if next_line.starts_with("Host ") {
+                    end_idx = Some(j);
+                    break;
+                }
+                j += 1;
             }
+            if end_idx.is_none() {
+                end_idx = Some(lines.len());
+            }
+            break;
         }
     }
 
     let result = match (start_idx, end_idx) {
         (Some(start), Some(end)) => {
             let mut new_content = String::new();
-            new_content.push_str(&lines[..start].join("\n"));
-            if !new_content.is_empty() {
+            if start > 0 {
+                new_content.push_str(&lines[..start].join("\n"));
                 new_content.push('\n');
             }
             new_content.push_str(new_host_config);
